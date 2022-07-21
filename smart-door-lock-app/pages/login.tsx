@@ -13,18 +13,20 @@ const Login: NextPage = () => {
       </Head>
 
       <Flex justify={'center'}>
-        <Flex direction={'column'}>
+        <Flex direction={'column'} minWidth={300}>
           <Heading mt={128}>Login</Heading>
-          <FormControl mt={4}>
+          <FormControl mt={4} isRequired>
             <FormLabel>Username / Email</FormLabel>
-            <Input mb={4} type='email' />
-            <FormLabel>Password</FormLabel>
-            <Input mb={4} type='password' />
-            <Button paddingX={8} colorScheme='blue'>Login</Button>
+            <Input type='email' />
           </FormControl>
+          <FormControl mt={4} isRequired>
+            <FormLabel>Password</FormLabel>
+            <Input type='password' />
+          </FormControl>
+          <Button mt={4} paddingX={8} colorScheme='blue'>Login</Button>
         </Flex>
       </Flex>
-    </div >
+    </div>
   )
 }
 
