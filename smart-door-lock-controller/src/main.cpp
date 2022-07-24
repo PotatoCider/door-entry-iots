@@ -1,28 +1,54 @@
 #include <Arduino.h>
 #include <Servo.h>
 
-#include <Servo.h>
+const int trigPin = 5;
+const int echoPin = 18;
 
-Servo myservo;  // create servo object to control a servo
-// twelve servo objects can be created on most boards
+//define sound speed in cm/uS
+#define SOUND_SPEED 0.034
 
-int pos = 0;    // variable to store the servo position
+long duration;
+float distanceCm;
 
+Servo myservo; // create servo object to control a servo
+int pos = 0; // variable to store the servo position
 
 void setup() {
-  // put your setup code here, to run once:
+  Serial.begin(9600); // Starts the serial communication
+  pinMode(trigPin, OUTPUT); // Sets the trigPin as an Output
+  pinMode(echoPin, INPUT); // Sets the echoPin as an Input
+
   myservo.attach(13);  // attaches the servo on pin 13 to the servo object
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
-  for (pos = 0; pos <= 180; pos += 1) { // goes from 0 degrees to 180 degrees
-    // in steps of 1 degree
-    myservo.write(pos);              // tell servo to go to position in variable 'pos'
-    delay(15);                       // waits 15ms for the servo to reach the position
+  // Clears the trigPin
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  // Sets the trigPin on HIGH state for 10 micro seconds
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+  
+  // Reads the echoPin, returns the sound wave travel time in microseconds
+  duration = pulseIn(echoPin, HIGH);
+  
+  // Calculate the distance
+  distanceCm = duration * SOUND_SPEED/2;
+  
+  if (distanceCm < 7) {
+    myservo.write(180);
+    delay(100);
+    Serial.println("Door opening!");
   }
-  for (pos = 180; pos >= 0; pos -= 1) { // goes from 180 degrees to 0 degrees
-    myservo.write(pos);              // tell servo to go to position in variable 'pos'
-    delay(15);                       // waits 15ms for the servo to reach the position
+  else {
+    myservo.write(0);
+    delay(100);
   }
+
+  // Prints the distance in the Serial Monitor
+  Serial.print("Distance (cm): ");
+  Serial.println(distanceCm);
+  
+  delay(1000);
 }
