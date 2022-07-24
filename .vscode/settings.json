@@ -1,5 +1,8 @@
 {
   "editor.tabSize": 2,
   "editor.formatOnSave": true,
-  "javascript.format.semicolons": "remove"
+  "javascript.format.semicolons": "remove",
+  "files.exclude": {
+    "smart-door-lock-app/node_modules/": true
+  }
 }

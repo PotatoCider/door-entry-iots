@@ -3,24 +3,25 @@ import type { NextApiRequest, NextApiResponse } from 'next'
 import { z } from 'zod'
 
 
-type Data = {
+type ResponseData = {
   ok: boolean
   error?: string
   is_open?: boolean
   timestamp?: number
 }
 
-const RequestBody = z.object({
+const RequestData = z.object({
   timeout: z.number().optional()
 }).optional()
 
-type RequestBody = z.infer<typeof RequestBody>
+type RequestData = z.infer<typeof RequestData>
 
+export type DoorState = typeof state
+
+// this object stores the global state of the door
 const state = {
   door: false,
 }
-
-export type DoorState = typeof state
 
 const openDoor = (timeout = 5000) => {
   state.door = true
@@ -28,7 +29,7 @@ const openDoor = (timeout = 5000) => {
 }
 
 const sendResponse = (
-  res: NextApiResponse<Data>,
+  res: NextApiResponse<ResponseData>,
   status: number,
   error?: string
 ) => res.status(status).json({
@@ -40,7 +41,7 @@ const sendResponse = (
 
 export default function handler(
   req: NextApiRequest,
-  res: NextApiResponse<Data>
+  res: NextApiResponse<ResponseData>
 ) {
   switch (req.method) {
     case 'GET':
@@ -49,7 +50,7 @@ export default function handler(
       if (req.headers['content-type'] !== 'application/json')
         return sendResponse(res, 400, 'Content-Type must be application/json')
 
-      const body = RequestBody.safeParse(req.body)
+      const body = RequestData.safeParse(req.body)
       if (!body.success) return sendResponse(res, 400, body.error.toString())
 
       openDoor(body.data?.timeout)
