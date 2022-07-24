@@ -6,7 +6,7 @@ import { z } from 'zod'
 type Data = {
   ok: boolean
   error?: string
-  door?: boolean
+  is_open?: boolean
   timestamp?: number
 }
 
@@ -34,7 +34,7 @@ const sendResponse = (
 ) => res.status(status).json({
   ok: status === 200,
   error,
-  door: state.door,
+  is_open: state.door,
   timestamp: Date.now(),
 })
 
