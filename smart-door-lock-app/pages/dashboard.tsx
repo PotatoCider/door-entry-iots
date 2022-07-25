@@ -2,10 +2,9 @@ import { Flex, Heading, Button, FormControl, FormLabel, Input, Text } from "@cha
 import { NextPage } from "next"
 import Head from "next/head"
 import { useEffect, useState } from "react"
-import { DoorState } from "./api/door"
+import { ResponseData } from "./api/door"
 
 const Dashboard: NextPage = () => {
-  const [reload, setReload] = useState<boolean>(false)
   const [timeout, setDoorTimeout] = useState(5000)
   const [isDoorOpen, setDoorOpen] = useState(false)
 
@@ -13,7 +12,7 @@ const Dashboard: NextPage = () => {
   useEffect(() => {
     const getDoorState = () => fetch('/api/door')
       .then(res => res.json())
-      .then((data: DoorState) => setDoorOpen(data.door))
+      .then((data: ResponseData) => setDoorOpen(data.is_open))
     const i = setInterval(getDoorState, 500)
 
     return () => clearInterval(i)
@@ -39,11 +38,12 @@ const Dashboard: NextPage = () => {
           </FormControl>
 
           <Button onClick={
-            async () => fetch('/api/door', {
+            () => fetch('/api/door', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ timeout }),
-            }).then(() => setReload(!reload))
+            }).then(res => res.json())
+              .then((data: ResponseData) => setDoorOpen(data.is_open))
           } mt={4} paddingX={8} colorScheme='blue'>Open Door</Button>
 
           <Text mt={4}>The door is {isDoorOpen ? 'open' : 'closed'}.</Text>

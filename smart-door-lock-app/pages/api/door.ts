@@ -3,20 +3,18 @@ import type { NextApiRequest, NextApiResponse } from 'next'
 import { z } from 'zod'
 
 
-type ResponseData = {
+export type ResponseData = {
   ok: boolean
   error?: string
-  is_open?: boolean
-  timestamp?: number
+  is_open: boolean
+  timestamp: number
 }
+
+export type RequestData = z.infer<typeof RequestData>
 
 const RequestData = z.object({
   timeout: z.number().optional()
 }).optional()
-
-type RequestData = z.infer<typeof RequestData>
-
-export type DoorState = typeof state
 
 // this object stores the global state of the door
 const state = {
