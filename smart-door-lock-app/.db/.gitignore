@@ -1,0 +1,6 @@
+
+# Ignore all database files in this directory
+*
+
+# Except this file
+!.gitignore

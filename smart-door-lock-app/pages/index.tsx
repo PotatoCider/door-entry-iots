@@ -1,14 +1,13 @@
 import { Link } from '@chakra-ui/react'
+import { withIronSessionSsr } from 'iron-session/next'
 import type { NextPage } from 'next'
 import Head from 'next/head'
 import Image from 'next/image'
+import { sessionOptions } from '../lib/session'
 import styles from '../styles/Home.module.css'
-import { Tabs, TabList, TabPanels, Tab, TabPanel } from '@chakra-ui/react'
+
 
 const Home: NextPage = () => {
-  let x = 100;
-
-
   return (
 
     <div className={styles.container}>

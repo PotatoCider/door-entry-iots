@@ -1,14 +1,30 @@
-import { Flex, Heading, Button, FormControl, FormLabel, Input, Text } from "@chakra-ui/react"
+import { Flex, Heading, Button, FormControl, FormLabel, Input, Text, Alert, AlertIcon, AlertDescription, Box } from "@chakra-ui/react"
 import { NextPage } from "next"
 import Head from "next/head"
 import { useEffect, useState } from "react"
+import { withSessionSsr } from "../lib/session"
 import { ResponseData } from "./api/door"
 
-const Dashboard: NextPage = () => {
+type Props = {
+  message?: string
+}
+
+export const getServerSideProps = withSessionSsr<Props>(async ({ req }) => {
+  if (!req.session.user?.message) return { props: {} }
+
+  const { message } = req.session.user
+  delete req.session.user.message
+
+  await req.session.save()
+
+  return { props: { message } }
+})
+
+const Dashboard: NextPage<Props> = ({ message }) => {
   const [timeout, setDoorTimeout] = useState(5000)
   const [isDoorOpen, setDoorOpen] = useState(false)
 
-
+  console.log(message)
   useEffect(() => {
     const getDoorState = () => fetch('/api/door')
       .then(res => res.json())
@@ -28,7 +44,12 @@ const Dashboard: NextPage = () => {
 
       <Flex justify={'center'}>
         <Flex direction={'column'} minWidth={300}>
-          <Heading mt={128}>Dashboard</Heading>
+          <Box h={128}></Box>
+          <Alert mb={4} status='success' display={message ? undefined : 'none'} mt={4}>
+            <AlertIcon />
+            <AlertDescription>{message}</AlertDescription>
+          </Alert>
+          <Heading>Dashboard</Heading>
           <FormControl mt={4}>
             <FormLabel>Timeout</FormLabel>
             <Flex direction='row' align='baseline'>

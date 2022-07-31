@@ -1,6 +1,8 @@
 import { IronSessionOptions } from "iron-session"
-import { User } from "./db"
+import { withIronSessionApiRoute, withIronSessionSsr } from "iron-session/next"
+import { GetServerSidePropsContext, GetServerSidePropsResult, NextApiHandler } from "next"
 
+// https://github.com/vvo/iron-session#session-wrappers
 
 export const sessionOptions: IronSessionOptions = {
   password: process.env.SECRET_COOKIE_PASSWORD as string,
@@ -11,11 +13,25 @@ export const sessionOptions: IronSessionOptions = {
   },
 }
 
+export function withSessionRoute(handler: NextApiHandler) {
+  return withIronSessionApiRoute(handler, sessionOptions)
+}
+
+export function withSessionSsr<P extends { [key: string]: unknown } = { [key: string]: unknown }>(
+  handler:
+    (context: GetServerSidePropsContext) => GetServerSidePropsResult<P> | Promise<GetServerSidePropsResult<P>>
+) {
+  return withIronSessionSsr(handler, sessionOptions)
+}
+
 // This is where we specify the typings of req.session.*
 declare module 'iron-session' {
   interface IronSessionData {
     user?: {
       username: string
+      name: string
+      email: string
+      message?: string
     }
   }
 }

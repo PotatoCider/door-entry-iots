@@ -1,64 +1,74 @@
 import { NextApiRequest, NextApiResponse } from "next"
 import { z } from "zod"
-import { database, User } from "../../lib/db"
+import { database, hashPassword, User } from "../../lib/db"
 import validator from 'validator'
 import crypto from 'crypto'
 import { withIronSessionApiRoute } from "iron-session/next"
-import { sessionOptions } from "../../lib/session"
+import { sessionOptions, withSessionRoute } from "../../lib/session"
+
+export type ResponseError = string
 
 export type ResponseData = {
   ok: boolean
-  error?: string
+  error?: ResponseError
 }
 
 export type RequestData = z.infer<typeof RequestData>
 
 const RequestData = z.object({
-  username: z.string(),
-  password: z.string(),
+  login: z.string().max(254, 'Email / Username too long'),
+  password: z.string().max(64, 'Password too long'),
 })
 
 const sendResponse = (
   res: NextApiResponse<ResponseData>,
   status: number,
-  error?: string
+  errors?: ResponseError
 ) => res.status(status).json({
   ok: status === 200,
-  error,
+  error: errors,
 })
 
-export default withIronSessionApiRoute(
-  async function loginRoute(req, res: NextApiResponse<ResponseData>) {
-    if (req.method != 'POST') return sendResponse(res, 404, 'Not found')
+export default withSessionRoute(loginRoute)
+
+async function loginRoute(
+  req: NextApiRequest,
+  res: NextApiResponse<ResponseData>
+) {
+  if (req.method != 'POST') return sendResponse(res, 404, 'Not found')
   if (req.headers['content-type'] != 'application/json')
     return sendResponse(res, 400, 'Content-Type must be application/json')
 
-  const body: RequestData = JSON.parse(req.body)
+  // parse incoming JSON data
+  const body = RequestData.safeParse(req.body)
+  if (!body.success) return sendResponse(res, 400, body.error.message)
 
-  const key = validator.isEmail(body.username ? 'email' : 'username')
+  const { login, password } = body.data
 
-  const row: User = database.prepare(`SELECT * FROM users WHERE ${key} = ?`).get(body.username)
-  if (!row) return sendResponse(res, 400, 'Invalid username/password')
+  const key = validator.isEmail(login) ? 'email' : 'username'
 
-  crypto.pbkdf2(body.password, row.salt, 310000, 32, 'sha256', async (err, hashedPwd) => {
-    if (err) return sendResponse(res, 500, err.toString());
-    if (!crypto.timingSafeEqual(row.password_hash, hashedPwd))
-      return sendResponse(res, 400, 'Invalid username/password');
-      
-      req.session.user = {
-        username: row.username,
-      };
-      await req.session.save();
-    return sendResponse(res, 200, 'Success');
-  });
-    // get user from database then:
-  },
-  sessionOptions,
-);
+  // fetch user from db
+  const row: User = database.prepare(`
+    SELECT * FROM users WHERE ${key} = ?
+  `).get(login.toLowerCase())
 
-// export default function handler(
-//   req: NextApiRequest,
-//   res: NextApiResponse<ResponseData>
-// ) {
-  
-// }
+  if (!row) return sendResponse(res, 400, `Invalid ${key} or password`)
+
+  // generate hashed password + salt
+  const hashedPwd = await hashPassword(password, row.salt).catch(err => console.error(err))
+  if (!hashedPwd) return sendResponse(res, 500, 'Internal error')
+
+  // compare hashed passwords
+  if (!crypto.timingSafeEqual(row.password_hash, hashedPwd))
+    return sendResponse(res, 400, `Invalid ${key} or password`)
+
+  // save session
+  req.session.user = {
+    username: row.username,
+    email: row.email,
+    name: row.name,
+    message: 'Sucessfully logged in',
+  }
+  await req.session.save()
+  sendResponse(res, 200, 'Success')
+}

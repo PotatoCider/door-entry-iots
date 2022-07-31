@@ -41,20 +41,16 @@ export default function handler(
   req: NextApiRequest,
   res: NextApiResponse<ResponseData>
 ) {
-  switch (req.method) {
-    case 'GET':
-      break
-    case 'POST':
-      if (req.headers['content-type'] !== 'application/json')
-        return sendResponse(res, 400, 'Content-Type must be application/json')
+  if (req.method === 'GET') return sendResponse(res, 200)
+  if (req.method !== 'POST') return sendResponse(res, 404, 'Not found')
 
-      const body = RequestData.safeParse(req.body)
-      if (!body.success) return sendResponse(res, 400, body.error.toString())
+  if (req.headers['content-type'] !== 'application/json')
+    return sendResponse(res, 400, 'Content-Type must be application/json')
 
-      openDoor(body.data?.timeout)
-      break
-    default:
-      return sendResponse(res, 404, 'Not found')
-  }
+  // parse incoming JSON data
+  const body = RequestData.safeParse(req.body)
+  if (!body.success) return sendResponse(res, 400, body.error.toString())
+
+  openDoor(body.data?.timeout)
   sendResponse(res, 200)
 }
