@@ -6,4 +6,7 @@
   "files.exclude": {
     "node_modules/": true
   },
+  "typescript.preferences.quoteStyle": "single",
+  "javascript.preferences.quoteStyle": "single",
+  "html.completion.attributeDefaultValue": "singlequotes",
 }

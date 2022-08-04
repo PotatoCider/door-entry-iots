@@ -28,6 +28,8 @@ const initDatabase = async () => {
 
   if (!process.env.ADMIN_PASSWORD) throw new Error('Admin password not defined in environment')
 
+  if (database.prepare(`SELECT COUNT(1) FROM sqlite_master WHERE type='table' AND name='users'`).pluck().get()) return
+
   database.exec(`CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY,
     email TEXT NOT NULL UNIQUE,
@@ -47,7 +49,7 @@ const initDatabase = async () => {
     'Admin',
     await hashPassword(process.env.ADMIN_PASSWORD, salt),
     salt,
-    Date.now()
+    Date.now(),
   )
 }
 initDatabase()

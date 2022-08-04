@@ -1,19 +1,17 @@
-import { NextApiRequest, NextApiResponse } from "next"
-import { z } from "zod"
-import { withSessionRoute } from "../../lib/session"
+import { NextApiRequest, NextApiResponse } from 'next'
+import { z } from 'zod'
+import { withSessionRoute } from '../../lib/session'
 import validator from 'validator'
-import { database, hashPassword } from "../../lib/db"
+import { database, hashPassword } from '../../lib/db'
 import crypto from 'crypto'
-
-export type ResponseErrorType = keyof RequestData | null
-
-export type ResponseData = {
-  ok: boolean
-  errorType?: ResponseErrorType
-  error?: string
-}
+import { BaseResponse } from '../../lib/api'
 
 export type RequestData = z.infer<typeof RequestData>
+export type ResponseData = BaseResponse & {
+  errorField?: ResponseErrorField
+}
+
+export type ResponseErrorField = keyof RequestData | null
 
 const RequestData = z.object({
   name: z.string().max(128, 'Name too long'),
@@ -27,23 +25,15 @@ const RequestData = z.object({
   confirmPassword: z.string().min(8, 'Too short').max(64, 'Too long'),
 })
 
-const sendResponse = (
-  res: NextApiResponse<ResponseData>,
-  status: number,
-  errorType?: ResponseErrorType,
-  error?: string
-) => res.status(status).json({
-  ok: status === 200,
-  errorType,
-  error,
-})
+function sendResponse(res: NextApiResponse<ResponseData>, status: number, errorField?: ResponseErrorField, error?: string) {
+  res.status(status).json({
+    ok: !!error,
+    errorField,
+    error,
+  })
+}
 
-export default withSessionRoute(loginRoute)
-
-async function loginRoute(
-  req: NextApiRequest,
-  res: NextApiResponse<ResponseData>
-) {
+async function handler(req: NextApiRequest, res: NextApiResponse<ResponseData>) {
   if (req.method != 'POST') return sendResponse(res, 404, null, 'Not found')
   if (req.headers['content-type'] != 'application/json')
     return sendResponse(res, 400, null, 'Content-Type must be application/json')
@@ -55,7 +45,9 @@ async function loginRoute(
     return sendResponse(res, 400, path[0] as any, message)
   }
 
-  const { name, username, email, newPassword, confirmPassword } = body.data
+  let { name, username, email, newPassword, confirmPassword } = body.data
+  username = username.toLowerCase()
+  email = email.toLowerCase()
 
   if (newPassword !== confirmPassword)
     return sendResponse(res, 400, 'confirmPassword', 'New Password does not match')
@@ -84,8 +76,9 @@ async function loginRoute(
     username,
     email,
     name,
-    message: 'Sucessfully registered',
   }
   await req.session.save()
   return sendResponse(res, 200)
 }
+
+export default withSessionRoute(handler)

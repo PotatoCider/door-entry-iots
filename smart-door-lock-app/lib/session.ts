@@ -1,6 +1,6 @@
-import { IronSessionOptions } from "iron-session"
-import { withIronSessionApiRoute, withIronSessionSsr } from "iron-session/next"
-import { GetServerSidePropsContext, GetServerSidePropsResult, NextApiHandler } from "next"
+import { IronSessionOptions } from 'iron-session'
+import { withIronSessionApiRoute, withIronSessionSsr } from 'iron-session/next'
+import { GetServerSidePropsContext, GetServerSidePropsResult, NextApiHandler } from 'next'
 
 // https://github.com/vvo/iron-session#session-wrappers
 
@@ -31,7 +31,6 @@ declare module 'iron-session' {
       username: string
       name: string
       email: string
-      message?: string
     }
   }
 }

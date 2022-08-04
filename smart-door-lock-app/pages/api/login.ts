@@ -1,40 +1,22 @@
-import { NextApiRequest, NextApiResponse } from "next"
-import { z } from "zod"
-import { database, hashPassword, User } from "../../lib/db"
+import { NextApiRequest, NextApiResponse } from 'next'
+import { z } from 'zod'
+import { database, hashPassword, User } from '../../lib/db'
 import validator from 'validator'
 import crypto from 'crypto'
-import { withIronSessionApiRoute } from "iron-session/next"
-import { sessionOptions, withSessionRoute } from "../../lib/session"
-
-export type ResponseError = string
-
-export type ResponseData = {
-  ok: boolean
-  error?: ResponseError
-}
+import { withSessionRoute } from '../../lib/session'
+import { BaseResponse, fetchJSON, sendBaseResponse } from '../../lib/api'
 
 export type RequestData = z.infer<typeof RequestData>
+export type ResponseData = BaseResponse
 
 const RequestData = z.object({
   login: z.string().max(254, 'Email / Username too long'),
   password: z.string().max(64, 'Password too long'),
 })
 
-const sendResponse = (
-  res: NextApiResponse<ResponseData>,
-  status: number,
-  errors?: ResponseError
-) => res.status(status).json({
-  ok: status === 200,
-  error: errors,
-})
+const sendResponse = sendBaseResponse
 
-export default withSessionRoute(loginRoute)
-
-async function loginRoute(
-  req: NextApiRequest,
-  res: NextApiResponse<ResponseData>
-) {
+async function handler(req: NextApiRequest, res: NextApiResponse<ResponseData>) {
   if (req.method != 'POST') return sendResponse(res, 404, 'Not found')
   if (req.headers['content-type'] != 'application/json')
     return sendResponse(res, 400, 'Content-Type must be application/json')
@@ -43,14 +25,15 @@ async function loginRoute(
   const body = RequestData.safeParse(req.body)
   if (!body.success) return sendResponse(res, 400, body.error.message)
 
-  const { login, password } = body.data
+  let { login, password } = body.data
+  login = login.toLowerCase()
 
   const key = validator.isEmail(login) ? 'email' : 'username'
 
   // fetch user from db
   const row: User = database.prepare(`
     SELECT * FROM users WHERE ${key} = ?
-  `).get(login.toLowerCase())
+  `).get(login)
 
   if (!row) return sendResponse(res, 400, `Invalid ${key} or password`)
 
@@ -67,8 +50,9 @@ async function loginRoute(
     username: row.username,
     email: row.email,
     name: row.name,
-    message: 'Sucessfully logged in',
   }
   await req.session.save()
-  sendResponse(res, 200, 'Success')
+  sendResponse(res, 200)
 }
+
+export default withSessionRoute(handler)
