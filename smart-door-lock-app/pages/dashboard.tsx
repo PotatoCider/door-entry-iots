@@ -1,24 +1,41 @@
-import { Flex, Heading, Button, FormControl, FormLabel, Input, Text, Alert, AlertIcon, AlertDescription, Box } from '@chakra-ui/react'
+import { Flex, Heading, Button, FormControl, FormLabel, Input, Text, Alert, AlertIcon, AlertDescription, Box, Checkbox, useClipboard } from '@chakra-ui/react'
 import { NextPage } from 'next'
 import Head from 'next/head'
 import { useRouter } from 'next/router'
 import { useEffect, useState } from 'react'
 import { fetchJSON } from '../lib/api'
+import { withSessionSsr } from '../lib/session'
 import { ResponseData } from './api/door'
 
-export async function getServerSideProps() { return { props: {} } }
+type Props = {
+  device_token?: string
+}
 
-const Dashboard: NextPage = () => {
+export const getServerSideProps = withSessionSsr<Props>(
+  async function getServerSideProps({ req }) {
+    if (!req.session.user) return {
+      redirect: { destination: '/login', permanent: false }
+    }
+
+    const { device_token } = req.session.user
+    return { props: { device_token } }
+  }
+)
+
+const Dashboard: NextPage<Props> = ({ device_token }) => {
   const [timeout, setDoorTimeout] = useState(5000)
   const [isDoorOpen, setDoorOpen] = useState(false)
+  const [showToken, setShowToken] = useState(false)
+
+  const { hasCopied, onCopy } = useClipboard(device_token ?? '')
 
   const router = useRouter()
 
-  const syncDoorState = () => fetchJSON<ResponseData>('/api/door')
-    .then(data => setDoorOpen(data.is_open))
+  const syncDoorState = () => fetchJSON<ResponseData>(`/api/door?token=${device_token}`)
+    .then(data => setDoorOpen(data.door_open ?? false))
 
-  const onOpenDoorClick = () => fetchJSON<ResponseData>('/api/door', 'POST', { timeout })
-    .then(data => setDoorOpen(data.is_open))
+  const onOpenDoorClick = () => fetchJSON<ResponseData>(`/api/door?token=${device_token}`, 'POST', { timeout })
+    .then(data => setDoorOpen(data.door_open ?? false))
 
   const onLogoutClick = () => fetchJSON('/api/logout', 'POST')
     .then(data => router.push('/login', {
@@ -49,26 +66,46 @@ const Dashboard: NextPage = () => {
 
       <Heading>Dashboard</Heading>
 
-      <FormControl mt={4}>
+      <Box h={4} />
+
+      {/* <FormControl mt={4}>
         <FormLabel>Timeout</FormLabel>
         <Flex direction='row' align='baseline'>
           <Input value={timeout} onChange={e => setDoorTimeout(isNaN(+e.target.value) ? timeout : +e.target.value)} />
           <Text ml={2}>ms</Text>
         </Flex>
-      </FormControl>
+      </FormControl> */}
 
+      <Text size='md' mt={4}>
+        The door is <b>{isDoorOpen ? 'open' : 'closed'}</b>.
+      </Text>
       <Button onClick={onOpenDoorClick} mt={4} paddingX={8} colorScheme='blue'>
         Open Door
       </Button>
 
-      <Text mt={4}>
-        The door is {isDoorOpen ? 'open' : 'closed'}.
-      </Text>
+      <Box h={4} />
+
+      <Text mt={4}><b>Device Token</b></Text>
+      <Flex direction='row' align='baseline' justify={'space-between'}>
+        <Text>
+          <b>
+            {showToken ? device_token : '*'.repeat(32)}
+          </b>
+        </Text>
+        <Button onClick={() => setShowToken(!showToken)} ml={2}>
+          Show
+        </Button>
+        <Button onClick={onCopy} ml={2} colorScheme='blue'>
+          {hasCopied ? 'Copied' : 'Copy'}
+        </Button>
+      </Flex>
+
+      <Box h={4} />
 
       <Button onClick={onLogoutClick} mt={4} paddingX={8} colorScheme='red'>
         Logout
       </Button>
-    </Flex>
+    </Flex >
   )
 }
 

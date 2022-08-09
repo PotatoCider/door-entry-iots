@@ -31,6 +31,7 @@ declare module 'iron-session' {
       username: string
       name: string
       email: string
+      device_token: string
     }
   }
 }

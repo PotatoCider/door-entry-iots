@@ -2,11 +2,11 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { z } from 'zod'
 import { BaseResponse, fetchJSON } from '../../lib/api'
+import { database } from '../../lib/db'
 import { withSessionRoute } from '../../lib/session'
 
 export type RequestData = z.infer<typeof RequestData>
-export type ResponseData = BaseResponse & {
-  is_open: boolean
+export type ResponseData = BaseResponse & DeviceState & {
   timestamp: number
 }
 
@@ -14,38 +14,52 @@ const RequestData = z.object({
   timeout: z.number().optional()
 }).optional()
 
+type DeviceState = {
+  door_open: boolean
+}
+
 // this object stores the global state of the door
-const state = {
-  door: false,
+const deviceStates: Map<string, DeviceState> = new Map()
+
+const _openDoor = (token: string, timeout = 5000) => {
+  deviceStates.set(token, { door_open: true })
+
+  setTimeout(() => deviceStates.set(token, { door_open: false }), timeout)
 }
 
-const _openDoor = (timeout = 5000) => {
-  state.door = true
-  setTimeout(() => state.door = false, timeout)
-}
-
-function sendResponse(res: NextApiResponse<ResponseData>, status: number, error?: string) {
+// if device token is not provided, door_open would be false by default.
+// this is to prevent brute force attackers from gaining information
+// about the device id.
+function sendResponse(res: NextApiResponse<ResponseData>, status: number, token?: string, error?: string) {
   res.status(status).json({
     ok: !!error,
     error,
-    is_open: state.door,
+    door_open: deviceStates.get(token ?? '')?.door_open ?? false,
     timestamp: Date.now(),
   })
 }
 
 async function handler(req: NextApiRequest, res: NextApiResponse<ResponseData>) {
-  if (req.method === 'GET') return sendResponse(res, 200)
-  if (req.method !== 'POST') return sendResponse(res, 404, 'Not found')
-
-  if (req.headers['content-type'] !== 'application/json')
+  if (req.method !== 'GET' && req.method !== 'POST') return sendResponse(res, 404, undefined, 'Not found')
+  if (req.method === 'POST' && req.headers['content-type'] !== 'application/json')
     return sendResponse(res, 400, 'Content-Type must be application/json')
-  Request
+
+  let { token } = req.query
+  if (!token || token instanceof Array) return sendResponse(res, 200)
+
+  const count = database.prepare(`
+    SELECT COUNT(1) FROM users WHERE device_token = ?
+  `).pluck().get(token)
+  if (count == 0) return sendResponse(res, 200)
+
+  if (req.method === 'GET') return sendResponse(res, 200, token)
+
   // parse incoming JSON data
   const body = RequestData.safeParse(req.body)
   if (!body.success) return sendResponse(res, 400, body.error.issues[0].message)
 
-  _openDoor(body.data?.timeout)
-  sendResponse(res, 200)
+  _openDoor(token, body.data?.timeout)
+  sendResponse(res, 200, token)
 }
 
 export default withSessionRoute(handler)

@@ -62,20 +62,23 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseData>) 
 
   // generate hashed password + salt
   const salt = crypto.randomBytes(16)
+  const device_token = crypto.randomBytes(16).toString('base64url')
+
   const hashedPwd = await hashPassword(newPassword, salt).catch(err => console.error(err))
   if (!hashedPwd) return sendResponse(res, 500, null, 'Internal error')
 
   // insert new user
   database.prepare(`
-    INSERT OR IGNORE INTO users (email, username, name, password_hash, salt, created_at)
+    INSERT OR IGNORE INTO users (email, username, name, password_hash, salt, device_token, created_at)
     VALUES (?, ?, ?, ?, ?, ?)
-  `).run(email, username, name, hashedPwd, salt, Date.now())
+  `).run(email, username, name, hashedPwd, salt, device_token, Date.now())
 
   // save session
   req.session.user = {
     username,
     email,
     name,
+    device_token,
   }
   await req.session.save()
   return sendResponse(res, 200)

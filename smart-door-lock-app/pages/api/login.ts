@@ -50,6 +50,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseData>) 
     username: row.username,
     email: row.email,
     name: row.name,
+    device_token: row.device_token,
   }
   await req.session.save()
   sendResponse(res, 200)

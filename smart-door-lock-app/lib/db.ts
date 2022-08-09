@@ -25,6 +25,7 @@ export function hashPassword(password: crypto.BinaryLike, salt: crypto.BinaryLik
 const initDatabase = async () => {
   console.log('initializing database')
   const salt = crypto.randomBytes(16)
+  const deviceToken = crypto.randomBytes(16).toString('base64url')
 
   if (!process.env.ADMIN_PASSWORD) throw new Error('Admin password not defined in environment')
 
@@ -37,18 +38,20 @@ const initDatabase = async () => {
     name TEXT,
     password_hash BLOB,
     salt BLOB,
+    device_token TEXT,
     created_at INTEGER
   )`)
 
   database.prepare(`
-    INSERT OR IGNORE INTO users (email, username, name, password_hash, salt, created_at)
-    VALUES (?, ?, ?, ?, ?, ?)`
+    INSERT OR IGNORE INTO users (email, username, name, password_hash, salt, device_token, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)`
   ).run(
     'admin@example.com',
     'admin',
     'Admin',
     await hashPassword(process.env.ADMIN_PASSWORD, salt),
     salt,
+    deviceToken,
     Date.now(),
   )
 }
@@ -61,5 +64,6 @@ export interface User {
   name: string
   password_hash: Buffer
   salt: Buffer
+  device_token: string
   created_at: number
 }

@@ -5,8 +5,9 @@ export type BaseResponseError = { ok: false, error?: string }
 
 export type BaseResponse = BaseResponseOk | BaseResponseError
 
-export function sendBaseResponse(res: NextApiResponse<BaseResponse>, status: number, error?: string) {
-  res.status(status).json({ ok: !error, error })
+export function sendBaseResponse<T>(res: NextApiResponse<BaseResponse & T>, status: number, error?: string, extras?: T) {
+  const body = Object.assign({ ok: !error, error }, extras)
+  res.status(status).json(body)
 }
 
 export const fetchJSON = <R extends BaseResponse>(url: string, method = 'GET', body?: Record<string, any>, headers?: Record<string, string>)
