@@ -1,11 +1,15 @@
 #!/bin/bash
+# PotatoCider 2022
+# Sets up telegram webhooks 
 
-
-if [ -z "$1" ]; then
+if [ "$1" == "" ]; then
   echo 'Please input your server name'
 fi
 
-if [ -z "$2" ]; then
+if [ "$2" == "" ]; then
   echo 'Please input your Telegram Bot Token'
 fi
 
+if [[ $# >= 5 ]]; then
+  echo wow
+fi

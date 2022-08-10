@@ -24,6 +24,7 @@
     "zod": "^3.17.10"
   },
   "devDependencies": {
+    "@grammyjs/types": "^2.8.2",
     "@types/better-sqlite3": "^7.5.0",
     "@types/node": "18.0.4",
     "@types/react": "18.0.15",

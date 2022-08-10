@@ -7,8 +7,19 @@ import { RequestData, ResponseData } from './api/login'
 import { SubmitHandler, useForm } from 'react-hook-form'
 import FormField from '../components/FormField'
 import { fetchJSON } from '../lib/api'
+import { withSessionSsr } from '../lib/session'
 
-export async function getServerSideProps() { return { props: {} } }
+export const getServerSideProps = withSessionSsr(
+  async function getServerSideProps({ req }) {
+    if (req.session.user) return {
+      redirect: {
+        destination: '/dashboard?message=' + encodeURIComponent('You are already logged in.'),
+        permanent: false,
+      }
+    }
+    return { props: {} }
+  }
+)
 
 type Inputs = RequestData
 

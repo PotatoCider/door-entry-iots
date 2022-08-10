@@ -35,16 +35,17 @@ const initDatabase = async () => {
     id INTEGER PRIMARY KEY,
     email TEXT NOT NULL UNIQUE,
     username TEXT NOT NULL UNIQUE,
-    name TEXT,
-    password_hash BLOB,
-    salt BLOB,
-    device_token TEXT,
-    created_at INTEGER
+    name TEXT NOT NULL,
+    password_hash BLOB NOT NULL,
+    salt BLOB NOT NULL,
+    device_token TEXT NOT NULL UNIQUE,
+    telegram_chat_id INTEGER,
+    created_at INTEGER NOT NULL
   )`)
 
   database.prepare(`
-    INSERT OR IGNORE INTO users (email, username, name, password_hash, salt, device_token, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?)`
+    INSERT OR IGNORE INTO users (email, username, name, password_hash, salt, device_token, telegram_chat_id, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     'admin@example.com',
     'admin',
@@ -52,6 +53,7 @@ const initDatabase = async () => {
     await hashPassword(process.env.ADMIN_PASSWORD, salt),
     salt,
     deviceToken,
+    ***REMOVED***,
     Date.now(),
   )
 }
@@ -65,5 +67,12 @@ export interface User {
   password_hash: Buffer
   salt: Buffer
   device_token: string
+  telegram_chat_id?: string
   created_at: number
+}
+
+export function getUserFromToken(token: string) {
+  return database.prepare(`
+  SELECT * FROM users WHERE device_token = ?
+`).get(token) as User | undefined
 }

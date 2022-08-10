@@ -757,6 +757,11 @@
     minimatch "^3.1.2"
     strip-json-comments "^3.1.1"
 
+"@grammyjs/types@^2.8.2":
+  version "2.8.2"
+  resolved "https://registry.yarnpkg.com/@grammyjs/types/-/types-2.8.2.tgz#cd8e176a93d32c32848c5af57f0958c2131853e4"
+  integrity sha512-RNYVxg5+yOOeDN9PY05KGEA/82vNXd7QMQPtEMCT8neg1jl7Keg/cbUElHOU8zYQUvVChu3uYSkfkviLAxvDSg==
+
 "@hapi/b64@5.x.x":
   version "5.0.0"
   resolved "https://registry.yarnpkg.com/@hapi/b64/-/b64-5.0.0.tgz#b8210cbd72f4774985e78569b77e97498d24277d"

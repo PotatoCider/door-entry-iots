@@ -70,7 +70,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseData>) 
   // insert new user
   database.prepare(`
     INSERT OR IGNORE INTO users (email, username, name, password_hash, salt, device_token, created_at)
-    VALUES (?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
   `).run(email, username, name, hashedPwd, salt, device_token, Date.now())
 
   // save session

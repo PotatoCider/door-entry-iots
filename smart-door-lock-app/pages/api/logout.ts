@@ -1,15 +1,8 @@
 import { NextApiRequest, NextApiResponse } from 'next'
-import { z } from 'zod'
 import { BaseResponse, fetchJSON, sendBaseResponse } from '../../lib/api'
 import { withSessionRoute } from '../../lib/session'
 
 export type ResponseData = BaseResponse
-export type RequestData = z.infer<typeof RequestData>
-
-const RequestData = z.object({
-  login: z.string().max(254, 'Email / Username too long'),
-  password: z.string().max(64, 'Password too long'),
-})
 
 const sendResponse = sendBaseResponse
 

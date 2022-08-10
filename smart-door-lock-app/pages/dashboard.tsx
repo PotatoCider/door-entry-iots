@@ -14,7 +14,10 @@ type Props = {
 export const getServerSideProps = withSessionSsr<Props>(
   async function getServerSideProps({ req }) {
     if (!req.session.user) return {
-      redirect: { destination: '/login', permanent: false }
+      redirect: {
+        destination: '/login?error=' + encodeURIComponent('You are not logged in.'),
+        permanent: false,
+      }
     }
 
     const { device_token } = req.session.user
@@ -86,7 +89,7 @@ const Dashboard: NextPage<Props> = ({ device_token }) => {
       <Box h={4} />
 
       <Text mt={4}><b>Device Token</b></Text>
-      <Flex direction='row' align='baseline' justify={'space-between'}>
+      <Flex direction='row' align='baseline' justify='space-between'>
         <Text>
           <b>
             {showToken ? device_token : '*'.repeat(32)}

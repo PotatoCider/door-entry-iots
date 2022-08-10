@@ -1,8 +1,7 @@
-// Next.js API route support: https://nextjs.org/docs/api-routes/introduction
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { z } from 'zod'
-import { BaseResponse, fetchJSON } from '../../lib/api'
-import { database } from '../../lib/db'
+import { BaseResponse } from '../../lib/api'
+import { database, getUserFromToken } from '../../lib/db'
 import { withSessionRoute } from '../../lib/session'
 
 export type RequestData = z.infer<typeof RequestData>
@@ -44,13 +43,15 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseData>) 
   if (req.method === 'POST' && req.headers['content-type'] !== 'application/json')
     return sendResponse(res, 400, 'Content-Type must be application/json')
 
-  let { token } = req.query
-  if (!token || token instanceof Array) return sendResponse(res, 200)
+  if (!req.headers.authorization) return sendResponse(res, 401)
 
-  const count = database.prepare(`
-    SELECT COUNT(1) FROM users WHERE device_token = ?
-  `).pluck().get(token)
-  if (count == 0) return sendResponse(res, 200)
+  const found = req.headers.authorization?.match(/Bearer ([a-zA-Z0-9_-]{22})/)
+  if (!found) return sendResponse(res, 401)
+
+  const token = found[1]
+
+  const user = getUserFromToken(token)
+  if (!user) return sendResponse(res, 200) // fail silently
 
   if (req.method === 'GET') return sendResponse(res, 200, token)
 
@@ -61,5 +62,6 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseData>) 
   _openDoor(token, body.data?.timeout)
   sendResponse(res, 200, token)
 }
+
 
 export default withSessionRoute(handler)

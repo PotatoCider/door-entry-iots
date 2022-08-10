@@ -1,48 +1,62 @@
 #include <Arduino.h>
 #include <Arduino_JSON.h>
 #include <HTTPClient.h>
+#include <IotWebConf.h>
 #include <Servo.h>
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <WiFiMulti.h>
 
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 4, 0)
+#include <sha/sha_parallel_engine.h>
+#else
+#include <hwcrypto/sha.h>
+#endif
+
+#if __has_include("secrets.h")
+#include "secrets.h"
+#else
+#include "secrets_default.h"
+#endif
+
 #include "cert.h"
 #include "urlencode.h"
 
-// TODO: remove from repo
-#define WIFI_SSID "Joseph"
-#define WIFI_PASS "***REMOVED***"
-#define WEBSERVER_URL "https://***REMOVED***/api/door"
-// #ifndef TELEGRAM_BOT_TOKEN
-#define TELEGRAM_BOT_TOKEN "***REMOVED***"
-// #endif
-// const char* ssid = "Joseph";
-// const char* password = "***REMOVED***";
-// const char* serverName = "https://***REMOVED***/api/door";  // Your Domain name with URL path or IP address with path
+#define POLL_DELAY 1000
+#define ECHO_DELAY 100
+#define MOTION_DEBOUNCE_TIME 10000
+#define SOUND_SPEED 0.034  // cm/us
 
-String httpGETRequest(String serverName, const char* caCert);
+#define ULTRASONIC_TRIG_PIN 18
+#define ULTRASONIC_ECHO_PIN 19
+#define SERVO_PWM_PIN 13
+#define STATUS_PIN 9
+
+#define DEFAULT_AP_NAME "Smart_Door_Lock"
+#define DEFAULT_AP_PASS "1234567890"
+
+String httpsRequest(String url, WiFiClientSecure& client, bool authorize = false, const String& payload = "");
 String postTelegramMessage(String message, String username);
 void setClock();
+void syncWithServer();
+double getUltrasonicDistance();
+bool isDoorOpen();
+void setDoorOpen(bool open);
 
-unsigned long lastTime = 0;
-unsigned long timerDelay = 1000;  // Set timer to 1 seconds (1000)
+#define DEIVCE_TOKEN_LEN 23
+char deviceToken[DEIVCE_TOKEN_LEN];
 
-const int trigPin = 5;
-const int echoPin = 18;
-bool opendoor = false;
-
-#define SOUND_SPEED 0.034  // define sound speed in cm/uS
-
-long duration;
-float distanceCm;
-
-Servo myservo;  // create servo object to control a servo
-int pos = 0;    // variable to store the servo position
-
+Servo servo;
 WiFiMulti wiFiMulti;
 
+DNSServer dnsServer;
+WebServer server(80);
+
+iotwebconf::IotWebConf iotWebConf(DEFAULT_AP_NAME, &dnsServer, &server, DEFAULT_AP_PASS);
+iotwebconf::TextParameter tokenParam = iotwebconf::TextParameter("Device Token", "tokenParam", deviceToken, DEIVCE_TOKEN_LEN);
+
 void setup() {
-  Serial.begin(115200);  // Starts the serial communication
+  Serial.begin(115200);
   delay(100);
   Serial.setDebugOutput(true);
 
@@ -50,127 +64,167 @@ void setup() {
   Serial.println();
   Serial.println();
 
-  WiFi.mode(WIFI_STA);
-  wiFiMulti.addAP(WIFI_SSID, WIFI_PASS);
+  iotWebConf.setStatusPin(STATUS_PIN);
+  iotWebConf.addSystemParameter(&tokenParam);
+  iotWebConf.setConfigSavedCallback([]() {
+    Serial.println("Config saved");
+  });
 
-  Serial.println("Connecting");
-  while (wiFiMulti.run() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.println("");
-  Serial.print("Connected to WiFi network with IP Address: ");
-  Serial.println(WiFi.localIP());
+  memset(deviceToken, 0, DEIVCE_TOKEN_LEN);
 
-  Serial.println("Timer set to 5 seconds (timerDelay variable), it will take 5 seconds before publishing the first reading.");
+  // -- Initializing the configuration.
+  iotWebConf.init();
 
-  pinMode(trigPin, OUTPUT);  // Sets the trigPin as an Output
-  pinMode(echoPin, INPUT);   // Sets the echoPin as an Input
+  // -- Set up required URL handlers on the web server.
+  server.on("/", [] { iotWebConf.handleConfig(); });
+  server.onNotFound([]() { iotWebConf.handleNotFound(); });
 
-  myservo.attach(13);  // attaches the servo on pin 13 to the servo object
+  // WiFi.mode(WIFI_STA);
+  // wiFiMulti.addAP(WIFI_SSID, WIFI_PASS);
 
-  setClock();
+  // Serial.println("Connecting");
+  // while (wiFiMulti.run() != WL_CONNECTED) {
+  //   delay(500);
+  //   Serial.print(".");
+  // }
+  // Serial.println("");
+  // Serial.print("Connected to WiFi network with IP Address: ");
+  // Serial.println(WiFi.localIP());
+
+  pinMode(ULTRASONIC_ECHO_PIN, INPUT);
+  pinMode(ULTRASONIC_TRIG_PIN, OUTPUT);
+
+  servo.attach(SERVO_PWM_PIN);
+
+  Serial.print("Setup done");
+
+  // setClock();
 }
+
+bool shouldDoorOpen = false;
 
 void loop() {
-  // Send an HTTP POST request every 10 minutes
-  if ((millis() - lastTime) > timerDelay) {
-    // Check WiFi connection status
-    if (WiFi.status() == WL_CONNECTED) {
-      String payload = httpGETRequest(WEBSERVER_URL, rootCALetsEncryptCert);
-      Serial.println(payload);
-      JSONVar myObject = JSON.parse(payload);
+  static uint32_t lastEchoTime = 0;
+  static String pendingMessage = "";
+  static uint32_t lastMovementTime = 0;
 
-      // JSON.typeof(jsonVar) can be used to get the type of the var
-      if (JSON.typeof(myObject) == "undefined") {
-        Serial.println("Parsing input failed!");
-        return;
-      }
+  syncWithServer();
 
-      // Serial.println(myObject["is_open"]);
-      opendoor = (bool)myObject["is_open"];
-    } else {
-      Serial.println("WiFi Disconnected");
+  if (millis() - lastEchoTime > ECHO_DELAY) {
+    double distance = getUltrasonicDistance();
+    Serial.print("Distance (cm): ");
+    Serial.println(distance);
+
+    if (distance >= 1 && distance <= 10) {
+      if (millis() - lastMovementTime > MOTION_DEBOUNCE_TIME)
+        pendingMessage = "Motion detected!";
+      lastMovementTime = millis();
     }
-    lastTime = millis();
+    lastEchoTime = millis();
   }
 
-  digitalWrite(trigPin, LOW);  // Clears the trigPin
-  delayMicroseconds(2);
-  digitalWrite(trigPin, HIGH);  // Sets the trigPin on HIGH state for 10 micro seconds
-  delayMicroseconds(10);
-  digitalWrite(trigPin, LOW);
+  setDoorOpen(shouldDoorOpen);
 
-  duration = pulseIn(echoPin, HIGH, 1000 * 100);  // Reads the echoPin, returns the sound wave travel time in microseconds
+  if (pendingMessage != "") {
+    postTelegramMessage(pendingMessage, TELEGRAM_CHAT_ID);
+    pendingMessage = "";
+  }
 
-  distanceCm = duration * SOUND_SPEED / 2;  // Calculate the distance
+  iotWebConf.doLoop();
+}
 
-  if (opendoor) {  // distanceCm < 7
-    if (myservo.read() == 0)
-      postTelegramMessage("door is opened", "gohjoseph");
-    myservo.write(90);
-    delay(100);
-    Serial.println("Door opening!");
+void setDoorOpen(bool open) {
+  String message = "";
+  if (open) {
+    if (servo.read() == 0) message = "Door is opened!";
+    servo.write(90);
   } else {
-    myservo.write(0);
-    delay(100);
+    servo.write(0);
   }
 
-  Serial.print("Distance (cm): ");  // Prints the distance in the Serial Monitor
-  Serial.println(distanceCm);
-
-  // delay(1000);
+  // we post later to prioritise opening the door first.
+  if (message != "") postTelegramMessage(message, TELEGRAM_CHAT_ID);
 }
 
-String postTelegramMessage(String message, String username) {
-  String url = "https://api.telegram.org/bot";
-  url += TELEGRAM_BOT_TOKEN;
-  url += "/sendMessage?chat_id=@";
-  url += username;
-  url += "&text=";
-  url += urlencode(message);
-  return httpGETRequest(url, rootCATelegramCert);
+// returns the distance
+double getUltrasonicDistance() {
+  digitalWrite(ULTRASONIC_TRIG_PIN, LOW);
+  delayMicroseconds(2);
+  digitalWrite(ULTRASONIC_TRIG_PIN, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(ULTRASONIC_TRIG_PIN, LOW);
+  delayMicroseconds(1);
+
+  // wait for echo
+  uint32_t duration_us = pulseIn(ULTRASONIC_ECHO_PIN, HIGH, 1000 * 50);
+
+  return (float)duration_us * SOUND_SPEED / 2;
 }
 
-String httpGETRequest(String serverName, const char* caCert) {
-  WiFiClientSecure* client = new WiFiClientSecure;
-  if (client) {
-    client->setCACert(caCert);
+void syncWithServer() {
+  static uint32_t lastPollTime = 0;
+  static WiFiClientSecure client;
+  client.setCACert(rootCALetsEncryptCert);
 
-    {
-      // Add a scoping block for HTTPClient https to make sure it is destroyed before WiFiClientSecure *client is
-      HTTPClient https;
+  if (millis() - lastPollTime <= POLL_DELAY) return;
+  lastPollTime = millis();
 
-      Serial.print("[HTTPS] begin...\n");
-      if (https.begin(*client, serverName)) {  // HTTPS
-        Serial.print("[HTTPS] GET...\n");
-        // start connection and send HTTP header
-        int httpCode = https.GET();
-
-        // httpCode will be negative on error
-        if (httpCode > 0) {
-          // HTTP header has been send and Server response header has been handled
-          Serial.printf("[HTTPS] GET... code: %d\n", httpCode);
-
-          // file found at server
-          if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY) {
-            String payload = https.getString();
-            Serial.println(payload);
-            return payload;
-          }
-        } else {
-          Serial.printf("[HTTPS] GET... failed, error: %s\n", https.errorToString(httpCode).c_str());
-        }
-
-        https.end();
-      } else {
-        Serial.printf("[HTTPS] Unable to connect\n");
-      }
-
-      // End extra scoping block
-    }
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("Not connected");
+    return;
   }
-  return "";
+  if (String(deviceToken) == "") {
+    Serial.println("Token not initialized");
+    return;
+  }
+
+  String url = String("https://") + WEBSERVER_DOMAIN + "/api/door";
+  String payload = httpsRequest(url, client, true);
+
+  JSONVar body = JSON.parse(payload);
+  if (JSON.typeof(body) == "undefined") {
+    Serial.printf("Parsing input failed!");
+    return;
+  }
+
+  shouldDoorOpen = (bool)body["door_open"];
+}
+
+String postTelegramMessage(String message, String chatID) {
+  static WiFiClientSecure client;
+  ;
+  client.setCACert(rootCATelegramCert);
+  String url =
+      String("https://api.telegram.org/bot") + TELEGRAM_BOT_TOKEN +
+      "/sendMessage?chat_id=" + chatID +
+      "&text=" + urlencode(message);
+
+  return httpsRequest(url, client);
+}
+
+String httpsRequest(String url, WiFiClientSecure& client, bool authorize = false, const String& payload = "") {
+  static HTTPClient https;
+
+  if (WiFi.status() != WL_CONNECTED || !client) return "";
+
+  bool ok = https.begin(client, url);
+  if (!ok) {
+    Serial.println("HTTPS begin failed");
+    return;
+  }
+
+  if (authorize) https.addHeader("Authorization", String("Bearer ") + deviceToken);
+
+  int statusCode = payload == "" ? https.GET() : https.POST(payload);
+  if (statusCode < 0) {
+    Serial.printf("HTTPS GET failed %s\n", https.errorToString(statusCode).c_str());
+    return;
+  }
+
+  String payload = https.getString();
+  https.end();
+
+  return payload;
 }
 
 // Not sure if WiFiClientSecure checks the validity date of the certificate.

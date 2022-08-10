@@ -2,12 +2,28 @@ import { Link } from '@chakra-ui/react'
 import { NextPage } from 'next'
 import Head from 'next/head'
 import Image from 'next/image'
+import { withSessionSsr } from '../lib/session'
 import styles from '../styles/Home.module.css'
 
+export const getServerSideProps = withSessionSsr(
+  async function getServerSideProps({ req }) {
+    if (!req.session.user) return {
+      redirect: {
+        destination: '/login',
+        permanent: false,
+      }
+    }
+    return {
+      redirect: {
+        destination: '/dashboard',
+        permanent: false,
+      }
+    }
+  }
+)
 
 const Home: NextPage = () => {
   return (
-
     <div className={styles.container}>
       <Head>
         <title>IOTS Project </title>
