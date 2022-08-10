@@ -6,8 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "init": "ts-node init.ts"
+    "lint": "next lint"
   },
   "dependencies": {
     "@chakra-ui/react": "^2.2.4",

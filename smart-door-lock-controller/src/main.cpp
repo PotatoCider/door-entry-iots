@@ -197,7 +197,7 @@ String notify(String message, String chatID) {
   return httpsRequest(url, true, message);
 }
 
-String httpsRequest(String url, bool authorize = false, const String& payload = "") {
+String httpsRequest(String url, bool authorize, const String& payload) {
   static HTTPClient https;
   static WiFiClientSecure client;
   client.setCACert(rootCALetsEncryptCert);
@@ -207,7 +207,7 @@ String httpsRequest(String url, bool authorize = false, const String& payload = 
   bool ok = https.begin(client, url);
   if (!ok) {
     Serial.println("HTTPS begin failed");
-    return;
+    return "";
   }
 
   if (authorize) https.addHeader("Authorization", String("Bearer ") + deviceToken);
@@ -215,13 +215,13 @@ String httpsRequest(String url, bool authorize = false, const String& payload = 
   int statusCode = payload == "" ? https.GET() : https.POST(payload);
   if (statusCode < 0) {
     Serial.printf("HTTPS GET failed %s\n", https.errorToString(statusCode).c_str());
-    return;
+    return "";
   }
 
-  String payload = https.getString();
+  String response = https.getString();
   https.end();
 
-  return payload;
+  return response;
 }
 
 // Not sure if WiFiClientSecure checks the validity date of the certificate.
