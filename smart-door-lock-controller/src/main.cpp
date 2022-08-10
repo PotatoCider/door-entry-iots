@@ -1,5 +1,5 @@
 #include <Arduino.h>
-#include <Arduino_JSON.h>
+#include <ArduinoJson.h>
 #include <HTTPClient.h>
 #include <IotWebConf.h>
 #include <Servo.h>
@@ -35,8 +35,8 @@
 #define DEFAULT_AP_NAME "Smart_Door_Lock"
 #define DEFAULT_AP_PASS "1234567890"
 
-String httpsRequest(String url, WiFiClientSecure& client, bool authorize = false, const String& payload = "");
-String postTelegramMessage(String message, String username);
+String httpsRequest(String url, bool authorize = false, const String& payload = "");
+String notify(String message, String username);
 void setClock();
 void syncWithServer();
 double getUltrasonicDistance();
@@ -126,7 +126,7 @@ void loop() {
   setDoorOpen(shouldDoorOpen);
 
   if (pendingMessage != "") {
-    postTelegramMessage(pendingMessage, TELEGRAM_CHAT_ID);
+    notify(pendingMessage, TELEGRAM_CHAT_ID);
     pendingMessage = "";
   }
 
@@ -143,7 +143,7 @@ void setDoorOpen(bool open) {
   }
 
   // we post later to prioritise opening the door first.
-  if (message != "") postTelegramMessage(message, TELEGRAM_CHAT_ID);
+  if (message != "") notify(message, TELEGRAM_CHAT_ID);
 }
 
 // returns the distance
@@ -179,31 +179,28 @@ void syncWithServer() {
   }
 
   String url = String("https://") + WEBSERVER_DOMAIN + "/api/door";
-  String payload = httpsRequest(url, client, true);
+  String payload = httpsRequest(url, true);
 
-  JSONVar body = JSON.parse(payload);
-  if (JSON.typeof(body) == "undefined") {
-    Serial.printf("Parsing input failed!");
+  DynamicJsonDocument doc(64);
+  DeserializationError err = deserializeJson(doc, payload);
+  if (err) {
+    Serial.printf("Parsing input failed! %s\n", err.c_str());
     return;
   }
 
-  shouldDoorOpen = (bool)body["door_open"];
+  shouldDoorOpen = doc["door_open"].as<bool>();
 }
 
-String postTelegramMessage(String message, String chatID) {
-  static WiFiClientSecure client;
-  ;
-  client.setCACert(rootCATelegramCert);
-  String url =
-      String("https://api.telegram.org/bot") + TELEGRAM_BOT_TOKEN +
-      "/sendMessage?chat_id=" + chatID +
-      "&text=" + urlencode(message);
+String notify(String message, String chatID) {
+  String url = String("https://") + WEBSERVER_DOMAIN + "/api/door";
 
-  return httpsRequest(url, client);
+  return httpsRequest(url, true, );
 }
 
-String httpsRequest(String url, WiFiClientSecure& client, bool authorize = false, const String& payload = "") {
+String httpsRequest(String url, bool authorize = false, const String& payload = "") {
   static HTTPClient https;
+  static WiFiClientSecure client;
+  client.setCACert(rootCALetsEncryptCert);
 
   if (WiFi.status() != WL_CONNECTED || !client) return "";
 

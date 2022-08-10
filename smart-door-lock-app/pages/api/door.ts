@@ -43,10 +43,8 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseData>) 
   if (req.method === 'POST' && req.headers['content-type'] !== 'application/json')
     return sendResponse(res, 400, 'Content-Type must be application/json')
 
-  if (!req.headers.authorization) return sendResponse(res, 401)
-
   const found = req.headers.authorization?.match(/Bearer ([a-zA-Z0-9_-]{22})/)
-  if (!found) return sendResponse(res, 401)
+  if (!found) return sendResponse(res, 401, 'Unauthorized')
 
   const token = found[1]
 
