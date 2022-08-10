@@ -17,8 +17,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseData>) 
   const secret = req.headers['x-telegram-bot-api-secret-token']
   if (!TELEGRAM_WEBHOOK_SECRET || secret !== TELEGRAM_WEBHOOK_SECRET) return sendResponse(res, 401)
 
-  console.log(req.body)
-  const { message }: Update = JSON.parse(req.body)
+  const { message }: Update = req.body
   const text = message?.text
   if (!text || message.chat.type !== 'private') return sendResponse(res, 200)
 
