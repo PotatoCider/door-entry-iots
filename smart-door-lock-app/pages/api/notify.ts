@@ -9,9 +9,7 @@ import { sendTelegramAPI } from '../../lib/telegram'
 export type RequestData = z.infer<typeof RequestData>
 export type ResponseData = BaseResponse
 
-const RequestData = z.object({
-  message: z.string().max(256, 'Message too long'),
-})
+const RequestData = z.string().max(256, 'Message too long')
 
 const sendResponse = sendBaseResponse
 
@@ -36,7 +34,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseData>) 
 
   await sendTelegramAPI('sendMessage', {
     chat_id: user.telegram_chat_id,
-    text: body.data.message,
+    text: body.data,
   })
 
   sendResponse(res, 200)

@@ -192,9 +192,9 @@ void syncWithServer() {
 }
 
 String notify(String message, String chatID) {
-  String url = String("https://") + WEBSERVER_DOMAIN + "/api/door";
+  String url = String("https://") + WEBSERVER_DOMAIN + "/api/notify";
 
-  return httpsRequest(url, true, );
+  return httpsRequest(url, true, message);
 }
 
 String httpsRequest(String url, bool authorize = false, const String& payload = "") {
