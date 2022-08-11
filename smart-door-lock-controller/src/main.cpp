@@ -70,8 +70,6 @@ void setup() {
     Serial.println("Config saved");
   });
 
-  memset(deviceToken, 0, DEIVCE_TOKEN_LEN);
-
   // -- Initializing the configuration.
   iotWebConf.init();
 
@@ -126,7 +124,7 @@ void loop() {
   setDoorOpen(shouldDoorOpen);
 
   if (pendingMessage != "") {
-    notify(pendingMessage, TELEGRAM_CHAT_ID);
+    notify(pendingMessage);
     pendingMessage = "";
   }
 
@@ -143,7 +141,7 @@ void setDoorOpen(bool open) {
   }
 
   // we post later to prioritise opening the door first.
-  if (message != "") notify(message, TELEGRAM_CHAT_ID);
+  if (message != "") notify(message);
 }
 
 // returns the distance
@@ -180,8 +178,8 @@ void syncWithServer() {
 
   String url = String("https://") + WEBSERVER_DOMAIN + "/api/door";
   String payload = httpsRequest(url, true);
-
-  DynamicJsonDocument doc(64);
+  Serial.println(payload);
+  DynamicJsonDocument doc(256);
   DeserializationError err = deserializeJson(doc, payload);
   if (err) {
     Serial.printf("Parsing input failed! %s\n", err.c_str());
@@ -191,7 +189,7 @@ void syncWithServer() {
   shouldDoorOpen = doc["door_open"].as<bool>();
 }
 
-String notify(String message, String chatID) {
+String notify(String message) {
   String url = String("https://") + WEBSERVER_DOMAIN + "/api/notify";
 
   return httpsRequest(url, true, message);
@@ -199,12 +197,12 @@ String notify(String message, String chatID) {
 
 String httpsRequest(String url, bool authorize, const String& payload) {
   static HTTPClient https;
-  static WiFiClientSecure client;
-  client.setCACert(rootCALetsEncryptCert);
+  static WiFiClientSecure* client = new WiFiClientSecure;
+  client->setCACert(rootCALetsEncryptCert);
 
   if (WiFi.status() != WL_CONNECTED || !client) return "";
 
-  bool ok = https.begin(client, url);
+  bool ok = https.begin(*client, url);
   if (!ok) {
     Serial.println("HTTPS begin failed");
     return "";
@@ -214,7 +212,7 @@ String httpsRequest(String url, bool authorize, const String& payload) {
 
   int statusCode = payload == "" ? https.GET() : https.POST(payload);
   if (statusCode < 0) {
-    Serial.printf("HTTPS GET failed %s\n", https.errorToString(statusCode).c_str());
+    Serial.printf("HTTPS request failed %s\n", https.errorToString(statusCode).c_str());
     return "";
   }
 

@@ -10,14 +10,13 @@ export type ResponseData = BaseResponse
 
 const sendResponse = sendBaseResponse
 
-// TODO: implement telegram webhook
-
 async function handler(req: NextApiRequest, res: NextApiResponse<ResponseData>) {
   const { TELEGRAM_WEBHOOK_SECRET } = process.env
   const secret = req.headers['x-telegram-bot-api-secret-token']
   if (!TELEGRAM_WEBHOOK_SECRET || secret !== TELEGRAM_WEBHOOK_SECRET) return sendResponse(res, 401)
 
   const { message }: Update = req.body
+
   const text = message?.text
   if (!text || message.chat.type !== 'private') return sendResponse(res, 200)
 
@@ -27,13 +26,13 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseData>) 
     case '/device':
       const token = params[1]
       if (!token) {
-        sendTelegramMessage(message.chat.id, 'Please key in a token.')
+        await sendTelegramMessage(message.chat.id, 'Please key in a token.')
         return sendResponse(res, 200)
       }
 
       const user = getUserFromToken(token)
       if (!user) {
-        sendTelegramMessage(message.chat.id, 'Token not found.')
+        await sendTelegramMessage(message.chat.id, 'Token not found.')
         return sendResponse(res, 200)
       }
 
@@ -41,8 +40,9 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseData>) 
         UPDATE users SET telegram_chat_id = ? WHERE device_token = ?
       `).run(message.chat.id, token)
 
-      sendTelegramMessage(message.chat.id, 'Device is linked.')
-      break
+      await sendTelegramMessage(message.chat.id, 'Device is linked.')
+
+      return sendResponse(res, 200)
   }
 
   return sendResponse(res, 200)

@@ -1,5 +1,5 @@
 export async function sendTelegramAPI(method: string, params: Record<string, string>) {
-  const TELEGRAM_BOT_TOKEN = process.env
+  const { TELEGRAM_BOT_TOKEN } = process.env
   if (!TELEGRAM_BOT_TOKEN) return
 
   const query = new URLSearchParams(params)

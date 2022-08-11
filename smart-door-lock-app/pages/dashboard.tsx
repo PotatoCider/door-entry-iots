@@ -34,11 +34,17 @@ const Dashboard: NextPage<Props> = ({ device_token }) => {
 
   const router = useRouter()
 
-  const syncDoorState = () => fetchJSON<ResponseData>(`/api/door?token=${device_token}`)
-    .then(data => setDoorOpen(data.door_open ?? false))
+  const syncDoorState = () =>
+    fetchJSON<ResponseData>(`/api/door`, 'GET', undefined, {
+      'Authorization': `Bearer ${device_token}`
+    })
+      .then(data => setDoorOpen(data.door_open ?? false))
 
-  const onOpenDoorClick = () => fetchJSON<ResponseData>(`/api/door?token=${device_token}`, 'POST', { timeout })
-    .then(data => setDoorOpen(data.door_open ?? false))
+  const onOpenDoorClick = () =>
+    fetchJSON<ResponseData>(`/api/door`, 'POST', { timeout }, {
+      'Authorization': `Bearer ${device_token}`
+    })
+      .then(data => setDoorOpen(data.door_open ?? false))
 
   const onLogoutClick = () => fetchJSON('/api/logout', 'POST')
     .then(data => router.push('/login', {
