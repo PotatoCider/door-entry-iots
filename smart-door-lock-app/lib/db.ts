@@ -53,7 +53,7 @@ const initDatabase = async () => {
     await hashPassword(process.env.ADMIN_PASSWORD, salt),
     salt,
     deviceToken,
-    ***REMOVED***,
+    -1,
     Date.now(),
   )
 }
@@ -75,4 +75,10 @@ export function getUserFromToken(token: string) {
   return database.prepare(`
   SELECT * FROM users WHERE device_token = ?
 `).get(token) as User | undefined
+}
+
+export function getUserFromChatID(chatID: string) {
+  return database.prepare(`
+  SELECT * FROM users WHERE telegram_chat_id = ?
+`).get(chatID) as User | undefined
 }

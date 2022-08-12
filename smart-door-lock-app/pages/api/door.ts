@@ -20,7 +20,7 @@ type DeviceState = {
 // this object stores the global state of the door
 const deviceStates: Map<string, DeviceState> = new Map()
 
-const _openDoor = (token: string, timeout = 5000) => {
+export const _openDoor = (token: string, timeout = 5000) => {
   deviceStates.set(token, { door_open: true })
 
   setTimeout(() => deviceStates.set(token, { door_open: false }), timeout)
