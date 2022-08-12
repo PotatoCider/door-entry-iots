@@ -48,7 +48,6 @@ void loop() {
 
   checkMotion();
   webConfLoop();
-
   yield();
 }
 
@@ -94,7 +93,7 @@ double getUltrasonicDistance() {
   digitalWrite(ULTRASONIC_TRIG_PIN, LOW);
   delayMicroseconds(1);
 
-  // wait for echo; timeout 50ms
+  // wait for echo
   uint32_t duration_us = pulseIn(ULTRASONIC_ECHO_PIN, HIGH, 1000 * 50);
 
   return (float)duration_us * SOUND_SPEED / 2;
