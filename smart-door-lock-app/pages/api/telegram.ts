@@ -2,7 +2,7 @@
 import { NextApiRequest, NextApiResponse } from 'next'
 import { withSessionRoute } from '../../lib/session'
 import { Update } from '@grammyjs/types'
-import { database, getUserFromToken, User } from '../../lib/db'
+import { database, getUserFromChatID, getUserFromToken, User } from '../../lib/db'
 import { BaseResponse, sendBaseResponse } from '../../lib/api'
 import { sendTelegramMessage } from '../../lib/telegram'
 import { _openDoor } from './door'
@@ -23,47 +23,46 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseData>) 
 
   const params = text.trim().split(/ +/)
 
-  console.log(params[0])
-
-  let user: User | undefined
   switch (params[0]) {
-    case '/start':
+    case '/start': {
       await sendTelegramMessage(message.chat.id, 'Please key in your device token using\n`/device <insert token here>`')
       return sendResponse(res, 200)
+    }
 
-    case '/open':
-      const users: User[] = database.prepare(`
+    case '/open': {
+      const user = database.prepare(`
       SELECT * FROM users WHERE telegram_chat_id = ?
-      `).all(message.chat.id)
+      `).get(message.chat.id)
 
-      if (users.length == 0) {
+      if (!user) {
         await sendTelegramMessage(message.chat.id, 'Please setup a token first.')
         return sendResponse(res, 200)
       }
 
-      const index = +params[1] - 1
-
-      if (index < 0 || isNaN(index)) {
-        await sendTelegramMessage(message.chat.id, `Please choose a device to open.\n${users.map((user, i) => `${i + 1}. ${user.device_token}`).join('\n')}`)
-        return sendResponse(res, 200)
-      }
-
-      const timeout = +(params[2] || '5000')
-      _openDoor(users[index].device_token, timeout)
+      const timeout = +(params[1] || '5000')
+      _openDoor(user.device_token, timeout)
 
       return sendResponse(res, 200)
-    case '/device':
+    }
+
+    case '/device': {
       const token = params[1]
       if (!token) {
-        await sendTelegramMessage(message.chat.id, 'Please key in a token.')
+        await sendTelegramMessage(message.chat.id, 'Please key in a token or do `/token unlink` to unlink your token.')
         return sendResponse(res, 200)
       }
 
-      user = getUserFromToken(token)
+      const existingUser = getUserFromChatID(message.chat.id.toString())
+      const user = getUserFromToken(token)
       if (!user) {
         await sendTelegramMessage(message.chat.id, 'Token not found.')
         return sendResponse(res, 200)
       }
+      if (existingUser && user.id !== existingUser.id) {
+        await sendTelegramMessage(message.chat.id, 'Another user already uses the same token.')
+        return sendResponse(res, 200)
+      }
+
 
       database.prepare(`
         UPDATE users SET telegram_chat_id = ? WHERE device_token = ?
@@ -72,6 +71,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseData>) 
       await sendTelegramMessage(message.chat.id, 'Device is linked.')
 
       return sendResponse(res, 200)
+    }
   }
 
   return sendResponse(res, 200)

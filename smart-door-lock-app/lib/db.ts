@@ -39,7 +39,7 @@ const initDatabase = async () => {
     password_hash BLOB NOT NULL,
     salt BLOB NOT NULL,
     device_token TEXT NOT NULL UNIQUE,
-    telegram_chat_id INTEGER,
+    telegram_chat_id INTEGER UNIQUE,
     created_at INTEGER NOT NULL
   )`)
 

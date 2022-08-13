@@ -65,7 +65,7 @@ void checkMotion() {
     if (millis() - lastMovementTime > MOTION_DEBOUNCE_TIME) message = "Motion detected!";
 
     lastMovementTime = millis();
-    Serial.printf("Motion detected: %d cm\n", distance);
+    Serial.printf("Motion detected: %.2f cm\n", distance);
   }
   lastEchoTime = millis();
 
