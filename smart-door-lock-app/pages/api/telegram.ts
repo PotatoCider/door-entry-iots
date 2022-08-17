@@ -45,6 +45,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseData>) 
       return sendResponse(res, 200)
     }
 
+    case '/token':
     case '/device': {
       const token = params[1]
       if (!token) {
@@ -63,18 +64,19 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseData>) 
         return sendResponse(res, 200)
       }
 
-
       database.prepare(`
         UPDATE users SET telegram_chat_id = ? WHERE device_token = ?
       `).run(message.chat.id, token)
 
-      await sendTelegramMessage(message.chat.id, 'Device is linked.')
+      await sendTelegramMessage(message.chat.id, 'Device is linked. Please remember to delete the message you sent to prevent people snooping on your device token.')
 
       return sendResponse(res, 200)
     }
-  }
+    default:
 
-  return sendResponse(res, 200)
+      await sendTelegramMessage(message.chat.id, 'Unrecognised message.')
+      return sendResponse(res, 200)
+  }
 }
 
 export default withSessionRoute(handler)
