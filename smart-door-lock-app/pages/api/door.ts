@@ -31,7 +31,7 @@ export const _openDoor = (token: string, timeout = 5000) => {
 // about the device id.
 function sendResponse(res: NextApiResponse<ResponseData>, status: number, token?: string, error?: string) {
   res.status(status).json({
-    ok: !!error,
+    ok: !error,
     error,
     door_open: deviceStates.get(token ?? '')?.door_open ?? false,
     timestamp: Date.now(),

@@ -29,7 +29,8 @@ const Login: NextPage = () => {
   const [error, setError] = useState('')
 
   // called when form is submitted
-  const onSubmit: SubmitHandler<Inputs> = data =>
+  const onSubmit: SubmitHandler<Inputs> = data => {
+    setError('')
     fetchJSON('/api/login', 'POST', data)
       .then(data => {
         if (data.ok) router.push({
@@ -38,6 +39,7 @@ const Login: NextPage = () => {
         })
         else setError(data.error ?? '')
       })
+  }
 
   return (
     <Flex direction='column' minWidth={300}>

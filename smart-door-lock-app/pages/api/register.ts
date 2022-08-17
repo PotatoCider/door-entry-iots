@@ -27,7 +27,7 @@ const RequestData = z.object({
 
 function sendResponse(res: NextApiResponse<ResponseData>, status: number, errorField?: ResponseErrorField, error?: string) {
   res.status(status).json({
-    ok: !!error,
+    ok: !error,
     errorField,
     error,
   })

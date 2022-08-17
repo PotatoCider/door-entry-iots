@@ -9,6 +9,7 @@ import { ResponseData } from './api/door'
 
 type Props = {
   device_token?: string
+  username?: string
 }
 
 export const getServerSideProps = withSessionSsr<Props>(
@@ -20,12 +21,12 @@ export const getServerSideProps = withSessionSsr<Props>(
       }
     }
 
-    const { device_token } = req.session.user
-    return { props: { device_token } }
+    const { device_token, username } = req.session.user
+    return { props: { device_token, username } }
   }
 )
 
-const Dashboard: NextPage<Props> = ({ device_token }) => {
+const Dashboard: NextPage<Props> = ({ device_token, username }) => {
   const [timeout, setDoorTimeout] = useState(5000)
   const [isDoorOpen, setDoorOpen] = useState(false)
   const [showToken, setShowToken] = useState(false)
@@ -73,7 +74,7 @@ const Dashboard: NextPage<Props> = ({ device_token }) => {
         </Alert>
       } */}
 
-      <Heading>Dashboard</Heading>
+      <Heading>{username}'s Dashboard</Heading>
 
       <Box h={4} />
 
