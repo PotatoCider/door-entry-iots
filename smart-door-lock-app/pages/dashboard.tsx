@@ -74,7 +74,7 @@ const Dashboard: NextPage<Props> = ({ device_token, username }) => {
         </Alert>
       } */}
 
-      <Heading>{username}'s Dashboard</Heading>
+      <Heading>{username}&apos;s Dashboard</Heading>
 
       <Box h={4} />
 
