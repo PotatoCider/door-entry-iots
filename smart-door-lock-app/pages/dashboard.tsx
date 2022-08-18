@@ -27,7 +27,7 @@ export const getServerSideProps = withSessionSsr<Props>(
 )
 
 const Dashboard: NextPage<Props> = ({ device_token, username }) => {
-  const [timeout, setDoorTimeout] = useState(5000)
+  const [timeout, setDoorTimeout] = useState(30000)
   const [isDoorOpen, setDoorOpen] = useState(false)
   const [showToken, setShowToken] = useState(false)
 
@@ -90,7 +90,7 @@ const Dashboard: NextPage<Props> = ({ device_token, username }) => {
         The door is <b>{isDoorOpen ? 'open' : 'closed'}</b>.
       </Text>
       <Button onClick={onOpenDoorClick} mt={4} paddingX={8} colorScheme='blue'>
-        Open Door
+        {isDoorOpen ? 'Close' : 'Open'} Door
       </Button>
 
       <Box h={4} />
