@@ -40,7 +40,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseData>) 
       }
 
       const timeout = +(params[1] || '5000')
-      _toggleDoor(user.device_token, timeout)
+      _toggleDoor(user.device_token)
 
       return sendResponse(res, 200)
     }
