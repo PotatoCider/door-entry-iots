@@ -14,16 +14,21 @@ const RequestData = z.object({
 }).optional()
 
 type DeviceState = {
-  door_open: boolean
+  door_open: boolean,
+  cur_timeout?: NodeJS.Timeout,
 }
 
 // this object stores the global state of the door
 const deviceStates: Map<string, DeviceState> = new Map()
 
-export const _openDoor = (token: string, timeout = 5000) => {
-  deviceStates.set(token, { door_open: true })
-
-  setTimeout(() => deviceStates.set(token, { door_open: false }), timeout)
+export const _toggleDoor = (token: string) => {
+  const prevState = deviceStates.get(token) ?? { door_open: false }
+  if (prevState.cur_timeout) clearTimeout(prevState.cur_timeout)
+  let i: NodeJS.Timeout | undefined = undefined
+  if (!prevState.door_open) {
+    i = setTimeout(() => deviceStates.set(token, { door_open: false, cur_timeout: undefined }))
+  }
+  deviceStates.set(token, { door_open: !prevState.door_open, cur_timeout: i })
 }
 
 // if device token is not provided, door_open would be false by default.
@@ -57,7 +62,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseData>) 
   const body = RequestData.safeParse(req.body)
   if (!body.success) return sendResponse(res, 400, body.error.issues[0].message)
 
-  _openDoor(token, body.data?.timeout)
+  _toggleDoor(token)
   sendResponse(res, 200, token)
 }
 

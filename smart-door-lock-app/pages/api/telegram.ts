@@ -5,7 +5,7 @@ import { Update } from '@grammyjs/types'
 import { database, getUserFromChatID, getUserFromToken, User } from '../../lib/db'
 import { BaseResponse, sendBaseResponse } from '../../lib/api'
 import { sendTelegramMessage } from '../../lib/telegram'
-import { _openDoor } from './door'
+import { _toggleDoor } from './door'
 
 export type ResponseData = BaseResponse
 
@@ -40,7 +40,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ResponseData>) 
       }
 
       const timeout = +(params[1] || '5000')
-      _openDoor(user.device_token, timeout)
+      _toggleDoor(user.device_token, timeout)
 
       return sendResponse(res, 200)
     }
