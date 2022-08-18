@@ -75,10 +75,10 @@ void checkMotion() {
 void setDoorOpen(bool open) {
   String message = "";
   if (open) {
-    if (servo.read() == 0) message = "Door is opened!";
-    servo.write(90);
-  } else {
+    if (servo.read() == 90) message = "Door is opened!";
     servo.write(0);
+  } else {
+    servo.write(90);
   }
 
   // we post later to prioritise opening the door first.
